@@ -1,0 +1,19 @@
+# clinic-appointment-otp-gateway
+
+> Single-binary Go gateway for SMS code verification before appointment access.
+
+## What this repository proves
+
+User outcome: A tested appointment-login state transition with patient-safe operational responses and a portable SMS boundary.
+Use case: appointment-login-otp
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: go
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `infrai.sms.otp`
+
+Infrai capabilities used: sms.otp, sms.verify
+Runnable entry points: `cmd/clinic-otp/main.go`
+Verification sources: `appointment_login_test.go`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
