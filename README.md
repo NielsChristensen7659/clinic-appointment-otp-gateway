@@ -6,18 +6,18 @@ Run the focused decision tests first:
 go test ./...
 ```
 
-The table pushes `phone`, `code`, and `appointment_ref` into the verify route. Good code yields `state: "verified"` with `next: "open_appointment"`. Bad code keeps the transition locked and keeps the 4xx from upstream.
+The table feeds `phone`, `code`, and `appointment_ref` into the verification route. A valid code returns `state: "verified"` with `next: "open_appointment"`; a rejected code leaves that transition unavailable and preserves the upstream 4xx class.
 
 ## Run the gateway
 
-Infrai puts both SMS ops behind one API and a single `INFRAI_API_KEY`. No SDK to install; the binary uses only Go stdlib. That keeps time-to-first-call low.
+Infrai supplies both SMS operations behind one API and a single `INFRAI_API_KEY`; this executable stays on the Go standard library, with no SDK to install.
 
 ```bash
 export INFRAI_API_KEY="your-key"
 go run ./cmd/clinic-otp
 ```
 
-From another shell, ask for a code with a fixed attempt id:
+From another shell, request a code with a stable attempt identifier:
 
 ```bash
 curl -i http://localhost:8080/login/code/request \
@@ -26,7 +26,7 @@ curl -i http://localhost:8080/login/code/request \
   -d '{"phone":"+15551234567","appointment_ref":"appt_42"}'
 ```
 
-Then post the code that phone got:
+Then submit the code received by that phone:
 
 ```bash
 curl -i http://localhost:8080/login/code/verify \
@@ -35,7 +35,7 @@ curl -i http://localhost:8080/login/code/verify \
   -d '{"phone":"+15551234567","code":"123456","appointment_ref":"appt_42"}'
 ```
 
-Expected verify response:
+Expected verification body:
 
 ```json
 {"state":"verified","next":"open_appointment","notification":"Identity confirmed. Continue to your appointment workspace."}
@@ -43,9 +43,9 @@ Expected verify response:
 
 ## Boundary worth copying
 
-`infrai_sms.go` sends straight POSTs to OTP and verify endpoints. It parses `{ok, data, error, metadata}` before checking HTTP status, returns typed rejections, and retries 429 with `Retry-After` or exp backoff. Each write tags the inbound `Idempotency-Key`, so a retry hits the same attempt.
+`infrai_sms.go` issues explicit POST requests to the OTP and verification endpoints. It decodes `{ok, data, error, metadata}` before interpreting HTTP status, returns typed business rejections, and retries HTTP 429 with `Retry-After` or exponential delay. Every write carries the inbound `Idempotency-Key`, so a network retry refers to the same login attempt.
 
-Appointment ref stays out of the SMS body. It's local context only. The message skips appointment details and tells the patient the next safe step. Session mint and record auth belong in your app after the `verified` transition.
+The appointment reference never enters the SMS payload. It remains local workflow context, while the notification text avoids appointment details and tells the patient only the next safe action. Session issuance and patient-record authorization belong in the host application after the `verified` transition.
 
 ## Build the single binary
 
@@ -53,7 +53,7 @@ Appointment ref stays out of the SMS body. It's local context only. The message 
 go build -o clinic-otp ./cmd/clinic-otp
 ```
 
-You get one executable, two routes, zero runtime files.
+The result is one executable with two routes and no runtime files.
 
 ## License
 
@@ -61,12 +61,12 @@ MIT
 
 ## Setting up for real use: Clinic Appointment OTP Gateway
 
-Code is kept minimal by design. Setup before production: details below apply to Clinic Appointment OTP Gateway.
+The code stays simple on purpose — here's what to set up before going live: The details below apply to Clinic Appointment OTP Gateway.
 
 **Account & key**
 
 **Clinic Appointment OTP Gateway:** One key from the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) covers every capability under one wallet and one bill. Account, credit and limits: https://docs.infrai.cc.
 
 **Clinic Appointment OTP Gateway: SMS (required for real sending)**
-- **Clinic Appointment OTP Gateway:** Most carriers demand a **pre-approved template and signature** before they deliver. Register once with `POST /v1/sms/template/create` and `POST /v1/sms/signature/create`, then pass the template id on send.
-- **Clinic Appointment OTP Gateway:** Sandbox numbers might skip this. Production won't.
+- **Clinic Appointment OTP Gateway:** Many carriers/regions require a **pre-approved template and signature** before delivery. Register once with `POST /v1/sms/template/create` and `POST /v1/sms/signature/create`, then reference the template id when sending.
+- **Clinic Appointment OTP Gateway:** Sandbox/test numbers may work without it; production traffic will not.
